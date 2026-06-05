@@ -7,6 +7,9 @@ return {
   event = { 'BufReadPre', 'BufNewFile' },
   config = function()
     local lint = require 'lint'
+
+    vim.g.markdown_lint_enabled = false
+
     lint.linters_by_ft = {
       markdown = { 'markdownlint' },
     }
@@ -52,8 +55,28 @@ return {
         -- Only run the linter in buffers that you can modify in order to
         -- avoid superfluous noise, notably within the handy LSP pop-ups that
         -- describe the hovered symbol using Markdown.
-        if vim.bo.modifiable then lint.try_lint() end
+        if not vim.bo.modifiable then return end
+
+        if vim.bo.filetype == 'markdown' and not vim.g.markdown_lint_enabled then
+          return
+        end
+
+        lint.try_lint()
       end,
     })
+
+    vim.keymap.set('n', '<leader>tm', function()
+      vim.g.markdown_lint_enabled = not vim.g.markdown_lint_enabled
+      local enabled = vim.g.markdown_lint_enabled
+
+      if enabled then
+        if vim.bo.filetype == 'markdown' and vim.bo.modifiable then lint.try_lint() end
+        vim.notify('Markdown lint: ON', vim.log.levels.INFO)
+      else
+        local markdown_ns = require('lint').get_namespace('markdownlint')
+        vim.diagnostic.reset(markdown_ns)
+        vim.notify('Markdown lint: OFF', vim.log.levels.INFO)
+      end
+    end, { desc = '[T]oggle [M]arkdown lint' })
   end,
 }
